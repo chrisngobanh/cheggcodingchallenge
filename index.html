@@ -19,25 +19,88 @@
 
     <script type="text/javascript">
 
+        // Cache the jquery lookup on the wrapper
+        var $wrapper = $('#chg-balloon-controls-container');
+
+        // This function checks to see of the username(s) exist
+        function checkIfUsernameIsAvailable(username, callback) {
+            $.ajax('/internship-challenge/api/user/?username=' + username).done(function(data) {
+                // "data" is an array. Check if it's empty
+                if (!data.length) {
+                    // Username is available
+                    callback(true);
+                } else {
+                    // Username is not available
+                    callback(false);
+                }
+            });
+        }
+
+        // Generate a username suggestion
+        // It gets a random word, and appends it to the existing username
+        function generateUsernameSuggestion(username, callback) {
+            // Use a random word generator from another website to get a random word
+            $.ajax('http://randomword.setgetgo.com/get.php').done(function(data) {
+                // "data" is a string that contains a random word
+                var newUsername = username + data;
+
+                checkIfUsernameIsAvailable(newUsername, function(bool) {
+                    if (bool) {
+                        // Username is available - call callback with it
+                        callback(newUsername);
+                    } else {
+                        // Username is NOT available - recursively call this function to try again
+                        generateUsernameSuggestion(username, callback);
+                    }
+                });
+            });
+        }
+
         // The User search API accepts a comma-separated list of usernames, and returns
         // user data for any matching records
 
-        $.ajax("/internship-challenge/api/user/?username=Hillary2016").done(function(data) {
-            // This logs Hillary2016's user data, since the username is registered
-            console.log(JSON.stringify(data));
-          });
+        // Handle when someone clicks the "Check availability" button
+        $('#chg-balloon-submit').click(function() {
+            // Remove any javascript created messages that exist
+            $('.js-created').remove();
 
-        $.ajax("/internship-challenge/api/user/?username=Trump4Pres,FeelTheBern1").done(function(data) {
-            // This logs Trump4Pres's user data, since the username is registered, but
-            // no user data for FeelTheBern1, since that username is not currently registered
-            console.log(JSON.stringify(data));
-          });
+            // Get the input field value
+            var input = $('#chg-balloon-input').val();
 
+            var usernames = input.split(',');
 
-        $("chg-balloon-submit").click(function() {
+            usernames.forEach(function(username) {
+                checkIfUsernameIsAvailable(username, function(bool) {
+                // if bool === true, username is available
+                if (bool) {
+                    // Available - Show the user a message saying that it's available
+                    $wrapper.append('<p class="js-created">' + username + ' is available!</p>');
 
-            // This is where you come in!!
+                } else {
+                    var $container = $('<div class="js-created"></div>');
 
+                    $container.append('<p>' + username + ' is already taken. Try some of these alternatives:</p>');
+
+                    // Create an unordered list element to hold the usernames
+                    var $ulist = $('<ul></ul>')
+
+                    // Generate a username suggestion 3 times
+                    generateUsernameSuggestion(username, function(username1) {
+                        generateUsernameSuggestion(username, function(username2) {
+                            generateUsernameSuggestion(username, function(username3) {
+                                // Add the usernames to the list
+                                $ulist.append('<li>' + username1 + '</li>');
+                                $ulist.append('<li>' + username2 + '</li>');
+                                $ulist.append('<li>' + username3 + '</li>');
+                                $container.append($ulist);
+                                $wrapper.append($container);
+                            });
+                        });
+                    });
+                    // Not Available. Give suggestions
+                }
+            });
+            });
         });
 
     </script>
